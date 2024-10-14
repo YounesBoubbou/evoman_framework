@@ -13,7 +13,7 @@ if headless:
 try:
     commandline = sys.argv[4]
 except:
-    print("usage: 'python boxplot.py EA11 EA12 EA21 EA22'")
+    print("usage: 'python boxplotTask2.py EA11 EA12 EA21 EA22'")
     exit()
 
 def read_best_runs(experiment_name):
