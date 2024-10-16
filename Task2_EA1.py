@@ -31,11 +31,20 @@ if not os.path.exists(experiment_name):
 
 n_hidden_neurons = 10
 
+if int(sys.argv[2]) == 1:
+    enemies_list = [4,6,8]
+elif int(sys.argv[2]) == 2:
+    enemies_list = [2,3,5]
+elif int(sys.argv[2]) == 3:
+    enemies_list = [2,5,6,7,8]
+elif int(sys.argv[2]) == 4:
+    enemies_list = [6,7,8] 
+
 
 # initializes simulation in individual evolution mode, for single static enemy.
 env = Environment(experiment_name=experiment_name,
                   multiplemode="yes",
-                  enemies=[2,3,5], 
+                  enemies=enemies_list, 
                   playermode="ai",
                   player_controller=player_controller(n_hidden_neurons),
                   enemymode="static",
@@ -59,8 +68,8 @@ dom_u = 1
 dom_l = -1
 npop = 100
 gens = 30
-p_mutation = 0.25
-alpha = 0.5
+p_mutation = 0.39
+alpha = 0.51
 
 #### Functions for the fitness
 # runs simulation
