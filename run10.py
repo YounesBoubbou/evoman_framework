@@ -4,7 +4,7 @@ import os, sys
 
 # runs the EA ten times if needed
 def run10(EA,experiment_name, enemy):
-    for i in range(1):
+    for i in range(10):
         # If results do not already exist:
         if not os.path.exists(experiment_name+str(i)):
             # Note: in order to run the EA ten times, we need it to accept an experiment name as the first argument, the enemy id as the second argument
