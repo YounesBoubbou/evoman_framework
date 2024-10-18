@@ -12,7 +12,7 @@ import numpy as np
 from evoman.environment import Environment
 from demo_controller import player_controller
 import random
-from multiprocessing import Pool, Manager
+from multiprocessing import Pool
 
 # Setup EvoMan environment
 experiment_name = sys.argv[1]
@@ -24,7 +24,6 @@ if int(sys.argv[2]) == 1:
     enemies_list = [2,5,6,7,8]
 elif int(sys.argv[2]) == 2:
     enemies_list = [6,7,8] 
-
 
 # Define the number of islands and migration interval
 num_islands = 4
@@ -55,8 +54,6 @@ def setup_logging(log_filename):
     console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logging.getLogger().addHandler(console_handler)
 
-
-
 def simulation(env, x):
     f, p, e, t = env.play(pcont=x)
     return f
@@ -76,48 +73,37 @@ def tournament_selection(population, fitness, k=3):
 
 def crossover(parent1, parent2):
     o1 = []
-    for i in range(0,len(parent1)):
+    for i in range(0, len(parent1)):
         d_i = np.abs(parent1[i] - parent2[i])
-        lower_bound = min(parent1[i],parent2[i]) - alpha * d_i
-        upper_bound = max(parent1[i],parent2[i]) + alpha * d_i
-        o1_gene_i = np.random.uniform(lower_bound,upper_bound)
+        lower_bound = min(parent1[i], parent2[i]) - alpha * d_i
+        upper_bound = max(parent1[i], parent2[i]) + alpha * d_i
+        o1_gene_i = np.random.uniform(lower_bound, upper_bound)
         o1.append(o1_gene_i)
-    
-
-    # child = np.copy(parent1)
-    # mask = np.random.rand(len(parent1)) < 0.5
-    # child[mask] = parent2[mask]
     return o1
 
 # limits
 def limits(x):
-
-    if x>dom_u:
+    if x > dom_u:
         return dom_u
-    elif x<dom_l:
+    elif x < dom_l:
         return dom_l
     else:
         return x
 
-
-def mutation(offspring,  gen, n_gens, mutation_rate=0.1):
+def mutation(offspring, gen, n_gens, mutation_rate=0.1):
     sigma_gen = 1 - 0.9 * (gen / n_gens)
-    for i in range(0,len(offspring)):
-        if np.random.uniform(0 ,1)<=mutation_rate:
-            offspring[i] =  offspring[i]+np.random.normal(0, sigma_gen) 
+    for i in range(0, len(offspring)):
+        if np.random.uniform(0, 1) <= mutation_rate:
+            offspring[i] = offspring[i] + np.random.normal(0, sigma_gen)
     offspring = np.array(list(map(lambda y: limits(y), offspring)))
-
-
-    # mask = np.random.rand(len(individual)) < mutation_rate
-    # individual[mask] += np.random.normal(0, 0.1, np.sum(mask))
-    # np.clip(individual, -1, 1, out=individual)
     return offspring
 
-def island_ea(island_id, shared_migrants, pop_size=25, n_vars=265, n_gens=30):
+def island_ea(island_id, pop_size=25, n_vars=265, n_gens=30):
     population = initialize_population(pop_size, n_vars)
     best_fitness = float('-inf')
     best_solution = None
-    
+    mean_fitnesses = []
+
     for gen in range(n_gens):
         fitness = [evaluate(ind) for ind in population]
         
@@ -132,54 +118,41 @@ def island_ea(island_id, shared_migrants, pop_size=25, n_vars=265, n_gens=30):
         
         # Create new population
         new_population = []
-        for i in range(0, 2*pop_size, 2):
-            parent1, parent2 = parents[i], parents[i+1]
+        for i in range(0, 2 * pop_size, 2):
+            parent1, parent2 = parents[i], parents[i + 1]
             child1 = mutation(crossover(parent1, parent2), gen, n_gens)
-            #child2 = mutation(crossover(parent2, parent1), gen, n_gens)
             new_population.extend([child1])
         
         population = np.array(new_population)
-        
-        # Migration
-        if gen % migration_interval == 0 and gen > 0:
-            # Select migrants
-            num_migrants = pop_size // 10  # 10% of population
-            migrants_indices = np.argsort(fitness)[-num_migrants:]
-            migrants = population[migrants_indices]
-            
-            # Send migrants
-            shared_migrants[island_id] = migrants.tolist()  # Use .tolist() to avoid issues with numpy arrays
-            
-            # Receive migrants
-            received_migrants = []
-            for i in range(num_islands):
-                if i != island_id and i in shared_migrants:
-                    received_migrants.extend(shared_migrants[i])
-            
-            # Integrate migrants
-            if received_migrants:
-                num_to_replace = min(len(received_migrants), pop_size // 5)  # Replace up to 20% of population
-                replace_indices = np.argsort(fitness)[:num_to_replace]
-                population[replace_indices] = np.array(received_migrants[:num_to_replace])
-        
         mean_fit = np.mean(fitness)
-        print(f"Island {island_id}, Generation {gen}: Best Fitness = {best_fitness}, Mean Fitness = {mean_fit}")
-        logging.info(f"Island {island_id}, Generation {gen}: Best Fitness = {best_fitness}, Mean Fitness = {mean_fit}")
+        mean_fitnesses.append(mean_fit)
 
-    
-    return best_solution, best_fitness
+    return best_fitness, np.mean(mean_fitnesses)
 
 def main():
     setup_logging(f"{experiment_name}/experiment_log.txt")
     
-    manager = Manager()
-    shared_migrants = manager.dict({i: [] for i in range(num_islands)})
+    n_gens = 30
     
+    # Header for log format: gen best mean
+    logging.info(f"{'gen':<5}{'best':>12}{'mean':>12}")
+    
+    # Create the process pool once and reuse it across all generations
     with Pool(num_islands) as p:
-        results = p.starmap(island_ea, [(i, shared_migrants) for i in range(num_islands)])
+        for gen in range(n_gens):
+            # Collect fitness data from all islands
+            results = p.starmap(island_ea, [(i, 25, 265, 1) for i in range(num_islands)])
+            
+            # Get global best fitness and mean fitness for this generation
+            global_best_fitness = max([result[0] for result in results])
+            global_mean_fitness = np.mean([result[1] for result in results])
+
+            # Format and log the statistics for this generation
+            logging.info(f"{gen:<5}{global_best_fitness:>12.6f}{global_mean_fitness:>12.6f}")
     
-    best_solution, best_fitness = max(results, key=lambda x: x[1])
-    
+    # At the end, get the overall best solution
+    results = p.starmap(island_ea, [(i, 25, 265, 1) for i in range(num_islands)])
+    best_solution, best_fitness = max(results, key=lambda x: x[0])
     logging.info(f"Best overall solution fitness: {best_fitness}")
     np.savetxt(f"{experiment_name}/best.txt", best_solution)
 
