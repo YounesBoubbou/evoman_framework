@@ -26,7 +26,7 @@ migration_interval = 10
 # Initialize the environment
 env = Environment(experiment_name=experiment_name,
                   multiplemode="yes",
-                  enemies=[2, 4, 6],
+                  enemies=[1, 2, 3, 5, 8],
                   playermode="ai",
                   player_controller=player_controller(10),
                   enemymode="static",
@@ -44,6 +44,7 @@ def setup_logging(log_filename):
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logging.getLogger().addHandler(console_handler)
+
 
 
 def simulation(env, x):
@@ -126,6 +127,8 @@ def island_ea(island_id, shared_migrants, pop_size=50, n_vars=265, n_gens=100):
         
         mean_fit = np.mean(fitness)
         print(f"Island {island_id}, Generation {gen}: Best Fitness = {best_fitness}, Mean Fitness = {mean_fit}")
+        logging.info(f"Island {island_id}, Generation {gen}: Best Fitness = {best_fitness}, Mean Fitness = {mean_fit}")
+
     
     return best_solution, best_fitness
 
