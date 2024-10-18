@@ -13,7 +13,7 @@ if headless:
 try:
     commandline = sys.argv[4]
 except:
-    print("usage: 'python boxplotTask2.py EA11 EA12 EA21 EA22'")
+    print("usage: 'python boxplotTask2.py EA11 EA21 EA12 EA22'")
     exit()
 
 def read_best_runs(experiment_name):
@@ -29,21 +29,26 @@ def read_best_runs(experiment_name):
 
 def test_run(env,NN):
     f,p,e,t = env.play(pcont=NN)
-    return p-e
+    return p, e
 
 # Determine the individual gain for each best individual among four series of ten runs.
 def testing(experiment_names): 
-    gains = []
+    gains, best_gain, best_NN = [], -100, 0
     # for each series of ten runs
     for exp_name in experiment_names:
         gains_exp = []
         NNs = read_best_runs(exp_name)
-        # for each best individual among the ten runs
+
+        # for each best individual among the ten runs check the gain
         for NN in NNs:
-            gain = test_run(env,NN)
+            p,e = test_run(env,NN)
+            gain = p-e
+            if gain > best_gain:
+                best_gain = gain
+                best_NN = NN
             gains_exp.append(gain)
         gains.append(gains_exp)
-    return gains
+    return gains, best_NN
 
 
 # standard environment
@@ -59,7 +64,7 @@ env = Environment(enemies=[1,2,3,4,5,6,7,8],
 
 # determining gains
 experiment_names1 = [sys.argv[1], sys.argv[2],sys.argv[3],sys.argv[4]]
-gains1 = testing(experiment_names1)
+gains1, NN = testing(experiment_names1)
 
 # plot gains
 plt.boxplot(gains1)
@@ -81,3 +86,20 @@ plt.text((3+4)*.5, y+h, p2, ha='center', va='bottom', color='k')
 
 plt.show()
 
+# making table of gains for best NN
+scores = [['player_life','enemy_life']]
+env.update_parameter('multiplemode','no')
+for i in range(1,9):
+    env.update_parameter('enemies',[i])
+    p,e = test_run(env,NN)
+    scores.append([str(p),str(e)])
+
+if not os.path.exists('boxplot'):
+    os.makedirs('boxplot')
+np.savetxt('boxplot/best.txt',NN)
+aux_file = open('boxplot/table.txt','w')
+for score_enemy in scores:
+    text = str('\n '+score_enemy[0])+', '+str(score_enemy[1])
+    print(score_enemy)
+    aux_file.write(text)
+aux_file.close()
