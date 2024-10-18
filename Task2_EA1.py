@@ -32,12 +32,8 @@ if not os.path.exists(experiment_name):
 n_hidden_neurons = 10
 
 if int(sys.argv[2]) == 1:
-    enemies_list = [4,6,8]
-elif int(sys.argv[2]) == 2:
-    enemies_list = [2,3,5]
-elif int(sys.argv[2]) == 3:
     enemies_list = [2,5,6,7,8]
-elif int(sys.argv[2]) == 4:
+elif int(sys.argv[2]) == 2:
     enemies_list = [6,7,8] 
 
 
