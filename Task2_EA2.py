@@ -98,14 +98,20 @@ def mutation(offspring, gen, n_gens, mutation_rate=0.1):
     offspring = np.array(list(map(lambda y: limits(y), offspring)))
     return offspring
 
-def island_ea(island_id, pop_size=25, n_vars=265, n_gens=30):
+def island_ea(island_id, pop_size=25, n_vars=265, n_gens=30, elitism=True, elitism_rate=0.04):
     population = initialize_population(pop_size, n_vars)
     best_fitness = float('-inf')
     best_solution = None
     mean_fitnesses = []
+    
+    num_elite = max(1, int(elitism_rate * pop_size))  # Number of elite individuals to preserve
 
     for gen in range(n_gens):
         fitness = [evaluate(ind) for ind in population]
+        
+        # Find the best individuals in the current population
+        best_indices = np.argsort(fitness)[-num_elite:]  # Indices of the best individuals
+        elites = population[best_indices]  # Select elites
         
         # Update best solution
         current_best = max(fitness)
@@ -118,12 +124,15 @@ def island_ea(island_id, pop_size=25, n_vars=265, n_gens=30):
         
         # Create new population
         new_population = []
-        for i in range(0, 2 * pop_size, 2):
+        for i in range(0, 2 * pop_size - num_elite, 2):  # Adjust for elitism
             parent1, parent2 = parents[i], parents[i + 1]
             child1 = mutation(crossover(parent1, parent2), gen, n_gens)
             new_population.extend([child1])
         
+        # Add the elite individuals to the new population
+        new_population.extend(elites.tolist())
         population = np.array(new_population)
+        
         mean_fit = np.mean(fitness)
         mean_fitnesses.append(mean_fit)
 
@@ -134,27 +143,34 @@ def main():
     
     n_gens = 30
     
-    # Header for log format: gen best mean
-    logging.info(f"{'gen':<5}{'best':>12}{'mean':>12}")
-    
-    # Create the process pool once and reuse it across all generations
-    with Pool(num_islands) as p:
-        for gen in range(n_gens):
-            # Collect fitness data from all islands
-            results = p.starmap(island_ea, [(i, 25, 265, 1) for i in range(num_islands)])
-            
-            # Get global best fitness and mean fitness for this generation
-            global_best_fitness = max([result[0] for result in results])
-            global_mean_fitness = np.mean([result[1] for result in results])
+    # Open the results file to save the generations data
+    results_file_path = f"{experiment_name}/results.txt"
+    with open(results_file_path, "w") as results_file:
+        # Write header for the results file
+        results_file.write(f"{'gen':<5}{'best':>12}{'mean':>12}\n")
+        
+        # Create the process pool once and reuse it across all generations
+        with Pool(num_islands) as p:
+            for gen in range(n_gens):
+                # Collect fitness data from all islands
+                results = p.starmap(island_ea, [(i, 25, 265, 1) for i in range(num_islands)])
+                
+                # Get global best fitness and mean fitness for this generation
+                global_best_fitness = max([result[0] for result in results])
+                global_mean_fitness = np.mean([result[1] for result in results])
 
-            # Format and log the statistics for this generation
-            logging.info(f"{gen:<5}{global_best_fitness:>12.6f}{global_mean_fitness:>12.6f}")
+                # Write the statistics for this generation to the results file
+                results_file.write(f"{gen:<5}{global_best_fitness:>12.6f}{global_mean_fitness:>12.6f}\n")
     
-    # At the end, get the overall best solution
+    # At the end, get the overall best solution and save it to a file
     results = p.starmap(island_ea, [(i, 25, 265, 1) for i in range(num_islands)])
     best_solution, best_fitness = max(results, key=lambda x: x[0])
+    
+    # Save the best solution in best.txt
+    best_solution_path = f"{experiment_name}/best.txt"
+    np.savetxt(best_solution_path, best_solution)
+
     logging.info(f"Best overall solution fitness: {best_fitness}")
-    np.savetxt(f"{experiment_name}/best.txt", best_solution)
 
 if __name__ == "__main__":
     main()
