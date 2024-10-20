@@ -136,7 +136,7 @@ def island_ea(island_id, pop_size=25, n_vars=265, n_gens=30, elitism=True, eliti
         mean_fit = np.mean(fitness)
         mean_fitnesses.append(mean_fit)
 
-    return best_fitness, np.mean(mean_fitnesses)
+    return best_fitness, np.mean(mean_fitnesses), best_solution  # Return best solution too
 
 def main():
     setup_logging(f"{experiment_name}/experiment_log.txt")
@@ -145,6 +145,9 @@ def main():
     
     # Open the results file to save the generations data
     results_file_path = f"{experiment_name}/results.txt"
+    best_overall_solution = None
+    best_overall_fitness = float('-inf')
+    
     with open(results_file_path, "w") as results_file:
         # Write header for the results file
         results_file.write(f"{'gen':<5}{'best':>12}{'mean':>12}\n")
@@ -158,19 +161,20 @@ def main():
                 # Get global best fitness and mean fitness for this generation
                 global_best_fitness = max([result[0] for result in results])
                 global_mean_fitness = np.mean([result[1] for result in results])
-
+                
+                # Update best overall solution if found
+                for result in results:
+                    if result[0] > best_overall_fitness:
+                        best_overall_fitness = result[0]
+                        best_overall_solution = result[2]
+                
                 # Write the statistics for this generation to the results file
                 results_file.write(f"{gen:<5}{global_best_fitness:>12.6f}{global_mean_fitness:>12.6f}\n")
     
-    # At the end, get the overall best solution and save it to a file
-    results = p.starmap(island_ea, [(i, 25, 265, 1) for i in range(num_islands)])
-    best_solution, best_fitness = max(results, key=lambda x: x[0])
-    
-    # Save the best solution in best.txt
-    best_solution_path = f"{experiment_name}/best.txt"
-    np.savetxt(best_solution_path, best_solution)
-
-    logging.info(f"Best overall solution fitness: {best_fitness}")
+    # Save the final best solution to a file at the end
+    best_solution_path = f"{experiment_name}/best_overall_solution.txt"
+    np.savetxt(best_solution_path, best_overall_solution)
+    logging.info(f"Best overall solution fitness: {best_overall_fitness}")
 
 if __name__ == "__main__":
     main()
